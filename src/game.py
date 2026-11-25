@@ -5,6 +5,7 @@ from board import Board
 from dragger import Dragger
 from config import Config
 from square import Square
+import ai
 
 class Game:
 
@@ -14,6 +15,8 @@ class Game:
         self.board = Board()
         self.dragger = Dragger()
         self.config = Config()
+        self.ai_enabled = False
+        self.status = None
 
     # blit methods
 
@@ -121,4 +124,53 @@ class Game:
             self.config.move_sound.play()
 
     def reset(self):
+        ai_enabled = self.ai_enabled
         self.__init__()
+        self.ai_enabled = ai_enabled
+
+    # ai and game state
+
+    def toggle_ai(self):
+        self.ai_enabled = not self.ai_enabled
+
+    def ai_turn(self):
+        """Let the computer play one move for the side to move."""
+        choice = ai.best_move(self.board, self.next_player)
+        if choice is None:
+            return
+        row, col, _ = choice
+        piece = self.board.squares[row][col].piece
+        piece.clear_moves()
+        self.board.calc_moves(piece, row, col, bool=True)
+        move = next(m for m in piece.moves if m == choice[2])
+        captured = self.board.squares[move.final.row][move.final.col].has_piece()
+        self.board.move(piece, move)
+        self.board.set_true_en_passant(piece)
+        self.play_sound(captured)
+        self.next_turn()
+
+    def update_status(self):
+        """Detect checkmate or stalemate for the side to move."""
+        if ai.legal_moves(self.board, self.next_player):
+            self.status = None
+            return
+        if self.board.king_attacked(self.next_player):
+            winner = 'White' if self.next_player == 'black' else 'Black'
+            self.status = f'Checkmate - {winner} wins'
+        else:
+            self.status = 'Stalemate'
+
+    def show_status(self, surface):
+        mode = 'vs AI' if self.ai_enabled else '2 players'
+        lbl = self.config.font.render(f'{mode}  (a: toggle AI)', 1, (40, 40, 40))
+        surface.blit(lbl, (WIDTH - lbl.get_width() - 8, 6))
+        if self.status:
+            big = pygame.font.SysFont('monospace', 40, bold=True)
+            text = big.render(self.status, 1, (255, 255, 255))
+            box = text.get_rect(center=(WIDTH // 2, HEIGHT // 2)).inflate(40, 30)
+            overlay = pygame.Surface(box.size, pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 190))
+            surface.blit(overlay, box)
+            surface.blit(text, text.get_rect(center=box.center))
+            hint = self.config.font.render('press r to restart', 1, (230, 230, 230))
+            surface.blit(hint, hint.get_rect(center=(WIDTH // 2, box.bottom + 18)))

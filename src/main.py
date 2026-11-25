@@ -11,7 +11,7 @@ class Main:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode( (WIDTH, HEIGHT) )
-        pygame.display.set_caption('Chess')
+        pygame.display.set_caption('Chesshloka')
         self.game = Game()
 
     def mainloop(self):
@@ -31,6 +31,7 @@ class Main:
 
             if dragger.dragging:
                 dragger.update_blit(screen)
+            game.show_status(screen)
 
             for event in pygame.event.get():
 
@@ -45,7 +46,8 @@ class Main:
                     if board.squares[clicked_row][clicked_col].has_piece():
                         piece = board.squares[clicked_row][clicked_col].piece
                         # valid piece (color) ?
-                        if piece.color == game.next_player:
+                        if piece.color == game.next_player and not game.status:
+                            piece.clear_moves()
                             board.calc_moves(piece, clicked_row, clicked_col, bool=True)
                             dragger.save_initial(event.pos)
                             dragger.drag_piece(piece)
@@ -102,6 +104,12 @@ class Main:
                             game.show_pieces(screen)
                             # next turn
                             game.next_turn()
+                            game.update_status()
+                            # computer reply
+                            if game.ai_enabled and game.status is None and game.next_player == 'black':
+                                pygame.display.update()
+                                game.ai_turn()
+                                game.update_status()
                     
                     dragger.undrag_piece()
                 
@@ -112,7 +120,14 @@ class Main:
                     if event.key == pygame.K_t:
                         game.change_theme()
 
-                     # changing themes
+                    # toggle computer opponent (plays black)
+                    if event.key == pygame.K_a:
+                        game.toggle_ai()
+                        if game.ai_enabled and game.next_player == 'black' and not game.status:
+                            game.ai_turn()
+                            game.update_status()
+
+                    # restart
                     if event.key == pygame.K_r:
                         game.reset()
                         game = self.game

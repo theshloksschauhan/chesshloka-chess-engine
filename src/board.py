@@ -95,6 +95,20 @@ class Board:
         
         return False
 
+    def king_attacked(self, color):
+        """True if color's king is currently attacked."""
+        for row in range(ROWS):
+            for col in range(COLS):
+                if self.squares[row][col].has_enemy_piece(color):
+                    p = self.squares[row][col].piece
+                    p.clear_moves()
+                    self.calc_moves(p, row, col, bool=False)
+                    hit = any(isinstance(m.final.piece, King) and m.final.piece.color == color for m in p.moves)
+                    p.clear_moves()
+                    if hit:
+                        return True
+        return False
+
     def calc_moves(self, piece, row, col, bool=True):
         '''
             Calculate all the possible (valid) moves of an specific piece on a specific position
@@ -227,7 +241,6 @@ class Board:
                             if not self.in_check(piece, move):
                                 # append new move
                                 piece.add_move(move)
-                            else: break
                         else:
                             # append new move
                             piece.add_move(move)
@@ -309,7 +322,6 @@ class Board:
                             if not self.in_check(piece, move):
                                 # append new move
                                 piece.add_move(move)
-                            else: break
                         else:
                             # append new move
                             piece.add_move(move)
